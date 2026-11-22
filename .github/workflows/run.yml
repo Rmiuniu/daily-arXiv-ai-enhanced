@@ -36,6 +36,8 @@ jobs:
           set -euo pipefail
           curl -LsSf https://astral.sh/uv/install.sh | sh
           uv sync
+          test -x .venv/bin/scrapy || { echo "::error::.venv 中没有 scrapy，依赖未安装成功"; exit 1; }
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Crawl arXiv papers
         id: crawl_step
@@ -112,19 +114,19 @@ jobs:
           echo "开始 AI 增强处理..."
           cd ai
 
-          for i in 1 2 3; do
+          for i in 1 2; do
             echo "AI 处理第 ${i} 次尝试"
             if python enhance.py --data "../data/${TODAY}.jsonl"; then
               echo "AI 增强处理完成"
               exit 0
             fi
-            echo "::warning::AI 处理第 ${i} 次失败"
-            if [ "${i}" -lt 3 ]; then
-              sleep 90
+            echo "::warning::AI 处理第 ${i} 次失败（该脚本失败时不落盘，重试会整批重新计费）"
+            if [ "${i}" -lt 2 ]; then
+              sleep 120
             fi
           done
 
-          echo "::error::AI 处理连续 3 次失败"
+          echo "::error::AI 处理失败，未生成结果文件"
           exit 1
 
       - name: Convert to Markdown
